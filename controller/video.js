@@ -1,5 +1,5 @@
 const mongo = require("../config/db");
-const Video = require("../models/video");
+const videoService = require("../services/video");
 
 const getVideos = async () => {
   const bucket = mongo.getFileBucket();
@@ -34,36 +34,13 @@ const uploadVideo = async (req, res) => {
     return;
   }
 
-  const bucket = mongo.getFileBucket();
-
-  const nowDate = Date.now().toString();
-
-  const customId = nowDate.substring(nowDate.length / 2, nowDate.length);
+  const payload = { binaryData, title };
 
   try {
-    const readStream = require("stream").Readable.from(binaryData);
-
-    const writeStream = bucket.openUploadStream(title, { id: customId });
-
-    readStream.pipe(writeStream);
-
-    writeStream.on("finish", async () => {
-      // Save video object if file is saved successfully
-      const video = new Video({
-        file_id: customId,
-        title: title,
-      });
-      await video.save();
-
-      res.status(200).send("File uploaded successfully!");
-    });
-
-    writeStream.on("error", (err) => {
-      console.error("Error uploading file to GridFS: ", err);
-      res.status(500).send("Internal Server Error");
-    });
+    await videoService.uploadVideo(payload);
+    res.status(200).json({ message: "File uploaded successfully" });
   } catch (err) {
-    console.error("Error uploading file to GridFS: ", err);
+    console.error("Error while uploading file: " + err.message);
     res.status(500).send("Internal server error");
   }
 };
